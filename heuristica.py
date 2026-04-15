@@ -28,6 +28,6 @@ def heuristica_gulosa(custo, consumo, capacidade):
             cap_restante[melhor_maquina] -= consumo[i][melhor_maquina]
             custo_total += melhor_custo
         else:
-            print(f"Produto {i} não pôde ser alocado!")
+            print(f"Produto {i} não pôd ser alocado!")
     
     return solucao, custo_total
