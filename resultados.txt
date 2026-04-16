@@ -1,0 +1,5 @@
+Instancia | Custo
+dataset/inst_5.txt | 55
+dataset/inst_10.txt | 85
+dataset/inst_20.txt | 124
+dataset/inst_50.txt | 153
