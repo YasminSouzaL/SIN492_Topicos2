@@ -9,7 +9,12 @@ def gerar_instancia(n_produtos, n_maquinas):
         custo.append([random.randint(5, 20) for _ in range(n_maquinas)])
         consumo.append([random.randint(1, 5) for _ in range(n_maquinas)])
 
-    capacidade = [random.randint(10, 20) for _ in range(n_maquinas)]
+    total_consumo_estimado = n_produtos * 3  # média
+    capacidade = [
+        random.randint(total_consumo_estimado // n_maquinas,
+                       total_consumo_estimado // n_maquinas + 10)
+        for _ in range(n_maquinas)
+    ]
 
     return custo, consumo, capacidade
 

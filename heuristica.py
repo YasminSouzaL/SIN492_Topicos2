@@ -1,3 +1,10 @@
+import time
+import matplotlib.pyplot as plt
+
+
+# ==============================
+# LEITURA DA INSTÂNCIA
+# ==============================
 def ler_instancia(nome_arquivo):
     with open(nome_arquivo, "r") as f:
         linhas = f.readlines()
@@ -10,6 +17,10 @@ def ler_instancia(nome_arquivo):
 
     return custo, consumo, capacidade
 
+
+# ==============================
+# HEURÍSTICA GULOSA
+# ==============================
 def heuristica_gulosa(custo, consumo, capacidade):
     n_produtos = len(custo)
     n_maquinas = len(capacidade)
@@ -18,7 +29,7 @@ def heuristica_gulosa(custo, consumo, capacidade):
     cap_restante = capacidade[:]
 
     custo_total = 0
-    print("Iniciando heurística gulosa...")
+    nao_alocados = 0
 
     for i in range(n_produtos):
         melhor_maquina = -1
@@ -35,21 +46,80 @@ def heuristica_gulosa(custo, consumo, capacidade):
             cap_restante[melhor_maquina] -= consumo[i][melhor_maquina]
             custo_total += melhor_custo
         else:
-            print(f"Produto {i} não pôde ser alocado!")
+            nao_alocados += 1
 
-    return solucao, custo_total
+    return solucao, custo_total, nao_alocados
 
+
+# ==============================
+# TESTE DA INSTÂNCIA
+# ==============================
+def testar_instancia(arquivo):
+    custo, consumo, capacidade = ler_instancia(arquivo)
+
+    inicio = time.time()
+    _, custo_total, nao_alocados = heuristica_gulosa(custo, consumo, capacidade)
+    fim = time.time()
+
+    tempo_execucao = fim - inicio
+
+    return custo_total, tempo_execucao, nao_alocados
+
+
+# ==============================
+# MAIN
+# ==============================
 if __name__ == "__main__":
-    arquivos = ["dataset/inst_5.txt", "dataset/inst_10.txt",
-                "dataset/inst_20.txt", "dataset/inst_50.txt"]
+    arquivos = [
+        "dataset/inst_5.txt",
+        "dataset/inst_10.txt",
+        "dataset/inst_20.txt",
+        "dataset/inst_50.txt"
+    ]
 
-    with open("resultados.txt", "w") as out:
-        out.write("Instancia | Custo\n")
+    resultados = []
 
-        for arq in arquivos:
-            custo, consumo, capacidade = ler_instancia(arq)
-            solucao, custo_total = heuristica_gulosa(custo, consumo, capacidade)
+    # Executa testes
+    for arquivo in arquivos:
+        custo, tempo, nao_alocados = testar_instancia(arquivo)
+        resultados.append((arquivo, custo, tempo, nao_alocados))
 
-            linha = f"{arq} | {custo_total}\n"
-            print(linha)
-            out.write(linha)
+    # ==============================
+    # SALVAR RESULTADOS
+    # ==============================
+    with open("resultados.txt", "w", encoding="utf-8") as out:
+        out.write("Instancia\tProdutos\tCusto\tTempo(s)\tNao_Alocados\n")
+
+        for arq, custo, tempo, nao_alocados in resultados:
+            n_produtos = len(ler_instancia(arq)[0])
+            out.write(f"{arq}\t{n_produtos}\t{custo}\t{tempo:.6f}\t{nao_alocados}\n")
+
+    print("Testes concluídos!")
+
+    # ==============================
+    # GRÁFICOS
+    # ==============================
+    labels = [str(len(ler_instancia(a)[0])) for a in arquivos]
+    custos = [r[1] for r in resultados]
+    tempos = [r[2] for r in resultados]
+
+    plt.figure(figsize=(12, 5))
+
+    # Gráfico de custo
+    plt.subplot(1, 2, 1)
+    plt.bar(labels, custos)
+    plt.title("Custo por Número de Produtos")
+    plt.xlabel("Produtos")
+    plt.ylabel("Custo Total")
+
+    # Gráfico de tempo
+    plt.subplot(1, 2, 2)
+    plt.bar(labels, tempos)
+    plt.color = 'orange'
+    plt.title("Tempo de Execução")
+    plt.xlabel("Produtos")
+    plt.ylabel("Tempo (s)")
+
+    plt.tight_layout()
+    plt.savefig("resultados_graficos.png")
+    plt.show()

@@ -1,5 +1,5 @@
-Instancia | Custo
-dataset/inst_5.txt | 55
-dataset/inst_10.txt | 85
-dataset/inst_20.txt | 124
-dataset/inst_50.txt | 153
+Instancia	Produtos	Custo	Tempo(s)	Nao_Alocados
+dataset/inst_5.txt	5	57	0.000010	0
+dataset/inst_10.txt	10	98	0.000007	0
+dataset/inst_20.txt	20	169	0.000012	0
+dataset/inst_50.txt	50	418	0.000022	0
