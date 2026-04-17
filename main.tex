@@ -4,151 +4,367 @@
 \usepackage{graphicx,url}
 \usepackage[utf8]{inputenc}
 \usepackage[brazil]{babel}
-%\usepackage[latin1]{inputenc}  
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{multirow}
 
-     
 \sloppy
 
-\title{Heurística Construtiva Baseada em GRASP para o Problema de Atribuição Quadrática Generalizada (GQAP)}
+\title{Heurística Construtiva Gulosa para o Problema de Atribuição\\
+Quadrática Generalizada (GQAP)}
 
-\author{Yasmin Souza, José Guedes}
+\author{Yasmin Souza\inst{1}, José Guedes\inst{1}}
 
-\address{Sistemas de Informação -- Universidade Federal de Viçosa (UFV) -- Campus Rio Paranaíba}
+\address{Sistemas de Informação -- Universidade Federal de Viçosa (UFV)\\
+  Campus Rio Paranaíba -- Rio Paranaíba, MG -- Brasil
+}
 
-\begin{document} 
-
+\begin{document}
 
 \maketitle
-Este trabalho se inspira em pesquisas anteriores, como em:
-\url{https://www.researchgate.net/publication/220403439_GRASP_with_path-relinking_for_the_generalized_quadratic_assignment_problem}
-
 
 \begin{abstract}
-  This meta-paper describes the style to be used in articles and short papers
-  for SBC conferences. For papers in English, you should add just an abstract
-  while for the papers in Portuguese, we also ask for an abstract in
-  Portuguese (``resumo''). In both cases, abstracts should not have more than
-  10 lines and must be in the first page of the paper.
+The Generalized Quadratic Assignment Problem (GQAP) is an NP-Hard combinatorial
+optimization problem that extends the classical Quadratic Assignment Problem by
+incorporating capacity constraints. This paper presents a greedy constructive
+heuristic for a simplified version of the GQAP, in which each entity is
+iteratively assigned to the feasible location that minimizes the incremental
+cost, considering both the linear allocation cost and the quadratic interaction
+cost with already-assigned entities. Computational experiments were conducted on
+45 synthetic instances of three sizes and three capacity tightness levels. All
+instances of medium and large sizes were solved feasibly, while tight small
+instances revealed limitations of the greedy approach -- motivating future
+extensions toward metaheuristics such as GRASP.
 \end{abstract}
-     
-\begin{resumo} 
-  Este meta-artigo descreve o estilo a ser usado na confecção de artigos e
-  resumos de artigos para publicação nos anais das conferências organizadas
-  pela SBC. É solicitada a escrita de resumo e abstract apenas para os artigos
-  escritos em português. Artigos em inglês deverão apresentar apenas abstract.
-  Nos dois casos, o autor deve tomar cuidado para que o resumo (e o abstract)
-  não ultrapassem 10 linhas cada, sendo que ambos devem estar na primeira
-  página do artigo.
+
+\begin{resumo}
+O Problema de Atribuição Quadrática Generalizada (GQAP) é um problema de
+otimização combinatória NP-Difícil que estende o clássico QAP incorporando
+restrições de capacidade. Este trabalho apresenta uma heurística construtiva
+gulosa para uma versão simplificada do GQAP, na qual cada entidade é
+iterativamente atribuída à localização viável que minimiza o custo incremental,
+considerando o custo linear de alocação e o custo quadrático de interação com as
+entidades já alocadas. Experimentos computacionais foram realizados em 45
+instâncias sintéticas de três tamanhos e três níveis de apertamento de
+capacidade. Todas as instâncias de médio e grande porte foram resolvidas de
+forma viável, enquanto instâncias pequenas com capacidade apertada revelaram
+limitações da abordagem gulosa, motivando extensões futuras com
+meta-heurísticas como o GRASP.
 \end{resumo}
 
 
-\section{General Information}
+% =============================================================================
+\section{Introdução}
+% =============================================================================
 
-All full papers and posters (short papers) submitted to some SBC conference,
-including any supporting documents, should be written in English or in
-Portuguese. The format paper should be A4 with single column, 3.5 cm for upper
-margin, 2.5 cm for bottom margin and 3.0 cm for lateral margins, without
-headers or footers. The main font must be Times, 12 point nominal size, with 6
-points of space before each paragraph. Page numbers must be suppressed.
+A Pesquisa Operacional (PO) é uma área interdisciplinar que aplica métodos
+matemáticos e computacionais ao apoio à tomada de decisão em sistemas complexos.
+Dentre os problemas tratados pela PO, os de \textit{atribuição} se destacam pela
+sua ampla aplicabilidade: alocação de tarefas a máquinas, posicionamento de
+instalações, design de redes de comunicação, entre outros.
 
-Full papers must respect the page limits defined by the conference.
-Conferences that publish just abstracts ask for \textbf{one}-page texts.
+O Problema de Atribuição Quadrática (QAP, do inglês \textit{Quadratic
+Assignment Problem}) é um dos mais estudados nesse contexto e pertence à classe
+dos problemas NP-Difíceis. Sua versão generalizada, o GQAP (\textit{Generalized
+Quadratic Assignment Problem}), introduz restrições de capacidade nas
+localizações, tornando o problema ainda mais desafiador para métodos exatos
+\cite{cordeau:2006}.
 
-\section{First Page} \label{sec:firstpage}
+\cite{mateus2011grasp}
 
-The first page must display the paper title, the name and address of the
-authors, the abstract in English and ``resumo'' in Portuguese (``resumos'' are
-required only for papers written in Portuguese). The title must be centered
-over the whole page, in 16 point boldface font and with 12 points of space
-before itself. Author names must be centered in 12 point font, bold, all of
-them disposed in the same line, separated by commas and with 12 points of
-space after the title. Addresses must be centered in 12 point font, also with
-12 points of space after the authors' names. E-mail addresses should be
-written using font Courier New, 10 point nominal size, with 6 points of space
-before and 6 points of space after.
+Para problemas dessa natureza, heurísticas e meta-heurísticas são as abordagens
+predominantes na literatura. As heurísticas construtivas, em particular,
+desempenham papel fundamental como ponto de partida para algoritmos mais
+sofisticados, como o GRASP (\textit{Greedy Randomized Adaptive Search
+Procedure}) \cite{resende:2011}, que combina construção gulosa-aleatória com
+busca local.
 
-The abstract and ``resumo'' (if is the case) must be in 12 point Times font,
-indented 0.8cm on both sides. The word \textbf{Abstract} and \textbf{Resumo},
-should be written in boldface and must precede the text.
+Este trabalho apresenta a \textbf{Etapa 1} de um projeto de pesquisa incremental:
+a implementação de uma heurística construtiva gulosa para o GQAP simplificado.
+O algoritmo serve como base para extensões futuras que incorporarão componentes
+de aleatoriedade (RCL) e busca local, evoluindo para um GRASP completo nas
+próximas etapas.
 
-\section{CD-ROMs and Printed Proceedings}
-
-In some conferences, the papers are published on CD-ROM while only the
-abstract is published in the printed Proceedings. In this case, authors are
-invited to prepare two final versions of the paper. One, complete, to be
-published on the CD and the other, containing only the first page, with
-abstract and ``resumo'' (for papers in Portuguese).
-
-\section{Sections and Paragraphs}
-
-Section titles must be in boldface, 13pt, flush left. There should be an extra
-12 pt of space before each title. Section numbering is optional. The first
-paragraph of each section should not be indented, while the first lines of
-subsequent paragraphs should be indented by 1.27 cm.
-
-\subsection{Subsections}
-
-The subsection titles must be in boldface, 12pt, flush left.
-
-\section{Figures and Captions}\label{sec:figs}
+As contribuições deste trabalho são: (i) modelagem formal do GQAP simplificado,
+(ii) implementação e análise de uma heurística construtiva gulosa com custo
+incremental, (iii) geração de um conjunto de instâncias sintéticas reproduzíveis,
+e (iv) experimentos computacionais com análise dos resultados.
 
 
-Figure and table captions should be centered if less than one line
-(Figure~\ref{fig:exampleFig1}), otherwise justified and indented by 0.8cm on
-both margins, as shown in Figure~\ref{fig:exampleFig2}. The caption font must
-be Helvetica, 10 point, boldface, with 6 points of space before and after each
-caption.
+% =============================================================================
+\section{Definição do Problema}
+% =============================================================================
 
-\begin{figure}[ht]
-\centering
-\includegraphics[width=.5\textwidth]{fig1.jpg}
-\caption{A typical figure}
-\label{fig:exampleFig1}
-\end{figure}
+\subsection{O Problema de Atribuição Quadrática Generalizada}
 
-\begin{figure}[ht]
-\centering
-\includegraphics[width=.3\textwidth]{fig2.jpg}
-\caption{This figure is an example of a figure caption taking more than one
-  line and justified considering margins mentioned in Section~\ref{sec:figs}.}
-\label{fig:exampleFig2}
-\end{figure}
+O GQAP pode ser descrito da seguinte forma: dado um conjunto de $n$ entidades
+$E = \{1, \ldots, n\}$ e um conjunto de $m$ localizações $L = \{1, \ldots, m\}$,
+deseja-se atribuir cada entidade a exatamente uma localização, respeitando as
+capacidades das localizações, de forma a minimizar o custo total da atribuição.
 
-In tables, try to avoid the use of colored or shaded backgrounds, and avoid
-thick, doubled, or unnecessary framing lines. When reporting empirical data,
-do not use more decimal digits than warranted by their precision and
-reproducibility. Table caption must be placed before the table (see Table 1)
-and the font used must also be Helvetica, 10 point, boldface, with 6 points of
-space before and after each caption.
+\subsection{Formulação Matemática}
+
+Seja $x_{ij} \in \{0,1\}$ a variável de decisão tal que $x_{ij} = 1$ se a
+entidade $i$ é atribuída à localização $j$, e $x_{ij} = 0$ caso contrário.
+A função objetivo do GQAP simplificado é:
+
+\begin{equation}
+\min \; F(x) = \sum_{i=1}^{n} \sum_{j=1}^{m} c_{ij} \, x_{ij}
+             + \sum_{i=1}^{n} \sum_{k=i+1}^{n} \sum_{j=1}^{m} \sum_{l=1}^{m}
+               f_{ik} \, d_{jl} \, x_{ij} \, x_{kl}
+\label{eq:fo}
+\end{equation}
+
+\noindent sujeito a:
+
+\begin{equation}
+\sum_{j=1}^{m} x_{ij} = 1, \quad \forall \, i \in E
+\label{eq:atrib}
+\end{equation}
+
+\begin{equation}
+\sum_{i=1}^{n} w_{ij} \, x_{ij} \leq \text{cap}_j, \quad \forall \, j \in L
+\label{eq:cap}
+\end{equation}
+
+\begin{equation}
+x_{ij} \in \{0, 1\}, \quad \forall \, i \in E, \; j \in L
+\label{eq:bin}
+\end{equation}
+
+onde:
+\begin{itemize}
+  \item $c_{ij}$: custo linear de alocar a entidade $i$ na localização $j$;
+  \item $f_{ik}$: fluxo (interação) entre as entidades $i$ e $k$;
+  \item $d_{jl}$: distância entre as localizações $j$ e $l$;
+  \item $w_{ij}$: consumo de recursos da entidade $i$ na localização $j$;
+  \item $\text{cap}_j$: capacidade total da localização $j$.
+\end{itemize}
+
+O primeiro somatório da Equação~\ref{eq:fo} representa o \textit{custo linear}
+de alocação. O segundo representa o \textit{custo quadrático}, que penaliza a
+co-alocação de entidades com alto fluxo mútuo em localizações distantes entre
+si -- característica central do GQAP.
+
+A restrição~\ref{eq:atrib} garante que cada entidade é atribuída a exatamente
+uma localização. A restrição~\ref{eq:cap} impõe que o consumo total de recursos
+em cada localização não exceda sua capacidade.
+
+
+% =============================================================================
+\section{Algoritmo Heurístico}
+% =============================================================================
+
+\subsection{Estratégia Construtiva Gulosa}
+
+A heurística proposta constrói a solução incrementalmente: a cada passo, uma
+entidade ainda não alocada é atribuída à localização que minimiza o
+\textit{custo incremental}, definido como a variação no valor da função objetivo
+ao inserir essa entidade.
+
+Para a entidade $i$ sendo avaliada para a localização $j$, o custo incremental
+$\Delta(i, j)$ é calculado como:
+
+\begin{equation}
+\Delta(i, j) = c_{ij} + \sum_{\substack{k \in E \\ x_k \neq -1}} f_{ik} \cdot d_{j, s(k)}
+\label{eq:delta}
+\end{equation}
+
+onde $s(k)$ é a localização já atribuída à entidade $k$. A localização é
+viável apenas se $w_{ij} \leq \text{cap}_j^{\text{restante}}$.
+
+\subsection{Pseudocódigo}
+
+\begin{verbatim}
+Algoritmo: Heurística Construtiva Gulosa para o GQAP
+Entrada: custo_linear, fluxo, distancia, consumo, capacidade
+Saída: solucao[], custo_total
+
+1.  Inicializar solucao[i] = -1  para todo i
+2.  cap_restante[j] = capacidade[j]  para todo j
+3.  Para cada entidade i de 0 a n-1:
+4.      melhor_local  = -1
+5.      melhor_custo  = +infinito
+6.      Para cada localização j de 0 a m-1:
+7.          Se consumo[i][j] > cap_restante[j]: continua
+8.          delta = custo_linear[i][j]
+9.          Para cada entidade k já alocada (solucao[k] != -1):
+10.             delta += fluxo[i][k] * distancia[j][solucao[k]]
+11.         Se delta < melhor_custo:
+12.             melhor_custo = delta
+13.             melhor_local = j
+14.     Se melhor_local != -1:
+15.         solucao[i] = melhor_local
+16.         cap_restante[melhor_local] -= consumo[i][melhor_local]
+17.     Senão:
+18.         Registrar i como não alocada (solução inviável)
+19. Retornar solucao, calcular_custo_total(solucao)
+\end{verbatim}
+
+\subsection{Estruturas de Dados}
+
+O algoritmo utiliza as seguintes estruturas:
+
+\begin{itemize}
+  \item \textbf{Matrizes 2D} ($n \times m$) para \texttt{custo\_linear} e
+        \texttt{consumo};
+  \item \textbf{Matrizes 2D simétricas} ($n \times n$) para \texttt{fluxo} e
+        ($m \times m$) para \texttt{distancia};
+  \item \textbf{Vetor} \texttt{solucao[n]}: mapeia cada entidade à sua
+        localização atribuída;
+  \item \textbf{Vetor} \texttt{cap\_restante[m]}: rastreia a capacidade
+        disponível em cada localização.
+\end{itemize}
+
+\subsection{Análise de Complexidade}
+
+O algoritmo executa três laços aninhados:
+
+\begin{itemize}
+  \item Laço externo: $n$ entidades;
+  \item Laço intermediário: $m$ localizações candidatas;
+  \item Laço interno (custo quadrático): até $n$ entidades já alocadas.
+\end{itemize}
+
+A complexidade de tempo do algoritmo é portanto $O(n^2 \cdot m)$.
+A complexidade de espaço é $O(n^2 + m^2 + nm)$, dominada pelas matrizes
+de fluxo e distância.
+
+Para as maiores instâncias testadas (30 entidades, 10 localizações), isso
+corresponde a $30^2 \times 10 = 9.000$ operações elementares -- o que explica
+os tempos de execução na ordem de décimos de milissegundo observados nos
+experimentos.
+
+
+% =============================================================================
+\section{Experimentos Computacionais}
+% =============================================================================
+
+\subsection{Ambiente Computacional}
+
+Os experimentos foram executados em um computador com processador Intel Core
+i-série, sistema operacional Windows 11 e linguagem Python 3.x (sem uso de
+bibliotecas de otimização externas). O código foi desenvolvido utilizando apenas
+a biblioteca padrão do Python, garantindo reprodutibilidade e portabilidade.
+
+\subsection{Instâncias Sintéticas}
+
+Na ausência de datasets padronizados para a versão simplificada do GQAP adotada,
+foram geradas 45 instâncias sintéticas por meio de um gerador controlado
+com semente aleatória (\textit{seed}) para garantir reprodutibilidade.
+
+As instâncias foram organizadas em três grupos de tamanho e três níveis de
+\textit{apertamento de capacidade} (fator $\alpha$), totalizando 9 combinações
+com 5 instâncias cada:
+
+\begin{itemize}
+  \item \textbf{Tamanhos}: pequeno ($5 \times 3$), médio ($15 \times 6$),
+        grande ($30 \times 10$) -- notação entidades $\times$ localizações;
+  \item \textbf{Fatores de capacidade}: folgado ($\alpha = 2{,}0$),
+        médio ($\alpha = 1{,}5$), apertado ($\alpha = 1{,}1$).
+\end{itemize}
+
+Os valores de custo linear foram amostrados uniformemente em $[1, 100]$;
+os fluxos em $[0, 50]$; as distâncias em $[1, 20]$; e os consumos em $[1, 10]$.
+A capacidade de cada localização $j$ foi definida como:
+
+\begin{equation}
+\text{cap}_j = \alpha \cdot \bar{w}_j \cdot \frac{n}{m}
+\end{equation}
+
+onde $\bar{w}_j$ é o consumo médio das entidades na localização $j$.
+
+\subsection{Resultados}
+
+A Tabela~\ref{tab:resultados} apresenta os resultados agregados por grupo de
+instâncias. Para cada combinação de tamanho e fator de capacidade são reportados:
+número de instâncias viáveis, custo médio, custo mínimo, custo máximo e tempo
+médio de execução em milissegundos.
 
 \begin{table}[ht]
 \centering
-\caption{Variables to be considered on the evaluation of interaction
-  techniques}
-\label{tab:exTable1}
-\includegraphics[width=.7\textwidth]{table.jpg}
+\caption{Resultados da heurística construtiva gulosa nas instâncias sintéticas
+         (5 instâncias por grupo)}
+\label{tab:resultados}
+\begin{tabular}{llcrrrr}
+\toprule
+\textbf{Tamanho} & \textbf{Capacidade} & \textbf{Viáveis} &
+\textbf{Custo Médio} & \textbf{Custo Mín.} & \textbf{Custo Máx.} &
+\textbf{Tempo (ms)} \\
+\midrule
+\multirow{3}{*}{$30 \times 10$}
+  & Folgada ($\alpha=2{,}0$)   & 5/5 & 61.464,03 & 48.932,57 & 82.675,86 & 0,6058 \\
+  & Média ($\alpha=1{,}5$)     & 5/5 & 77.183,02 & 68.109,71 & 94.998,69 & 0,7575 \\
+  & Apertada ($\alpha=1{,}1$)  & 5/5 & 85.833,44 & 74.697,77 & 95.585,15 & 0,6830 \\
+\midrule
+\multirow{3}{*}{$15 \times 6$}
+  & Folgada ($\alpha=2{,}0$)   & 5/5 & 11.209,45 & 7.144,25  & 16.088,11 & 0,1105 \\
+  & Média ($\alpha=1{,}5$)     & 5/5 & 17.042,48 & 12.374,32 & 24.588,39 & 0,1216 \\
+  & Apertada ($\alpha=1{,}1$)  & 5/5 & 22.493,62 & 18.320,10 & 25.302,69 & 0,0792 \\
+\midrule
+\multirow{3}{*}{$5 \times 3$}
+  & Folgada ($\alpha=2{,}0$)   & 5/5 & 1.133,68  & 685,91    & 1.884,12  & 0,0333 \\
+  & Média ($\alpha=1{,}5$)     & 5/5 & 1.555,62  & 580,15    & 2.816,43  & 0,0284 \\
+  & Apertada ($\alpha=1{,}1$)  & \textbf{2/5} & 1.459,81 & 779,45 & 2.934,29 & 0,1661 \\
+\bottomrule
+\end{tabular}
 \end{table}
 
-\section{Images}
+\subsection{Análise dos Resultados}
 
-All images and illustrations should be in black-and-white, or gray tones,
-excepting for the papers that will be electronically available (on CD-ROMs,
-internet, etc.). The image resolution on paper should be about 600 dpi for
-black-and-white images, and 150-300 dpi for grayscale images.  Do not include
-images with excessive resolution, as they may take hours to print, without any
-visible difference in the result. 
+\textbf{Viabilidade.} A heurística encontrou soluções viáveis em 42 das 45
+instâncias (93,3\%). As 3 instâncias inviáveis pertencem exclusivamente ao grupo
+pequeno com capacidade apertada ($5 \times 3$, $\alpha = 1{,}1$). Nesse cenário,
+a estratégia puramente gulosa pode esgotar a capacidade de certas localizações
+nas primeiras alocações, inviabilizando as entidades restantes. Esse resultado
+evidencia uma limitação conhecida das heurísticas construtivas gulosas:
+\textit{decisões localmente ótimas podem comprometer a viabilidade global}.
 
-\section{References}
+\textbf{Qualidade das soluções.} O custo médio cresce significativamente com o
+apertamento da capacidade. Para instâncias grandes, o custo médio na configuração
+apertada (85.833) é aproximadamente 40\% superior ao da configuração folgada
+(61.464). Essa diferença é esperada: com menos opções viáveis, a heurística
+não consegue sempre escolher a localização de menor custo incremental.
 
-Bibliographic references must be unambiguous and uniform.  We recommend giving
-the author names references in brackets, e.g. \cite{knuth:84},
-\cite{boulic:91}, and \cite{smith:99}.
+\textbf{Desempenho computacional.} Todos os tempos de execução foram inferiores
+a 1 ms, mesmo para as maiores instâncias ($30 \times 10$). Esse comportamento é
+consistente com a complexidade teórica $O(n^2 \cdot m)$: para $n=30$ e $m=10$,
+o número de operações é 9.000, trivial para hardware moderno. A escalabilidade
+da heurística é, portanto, uma de suas principais vantagens.
 
-The references must be listed using 12 point font size, with 6 points of space
-before each reference. The first line of each reference should not be
-indented, while the subsequent should be indented by 0.5 cm.
+\textbf{Variância entre sementes.} Em alguns grupos, observa-se variação
+considerável entre o custo mínimo e máximo (por exemplo, 48.932 a 82.675 nas
+instâncias grandes folgadas). Isso indica que a qualidade da solução é sensível
+à estrutura particular de cada instância, o que reforça a necessidade de
+mecanismos de diversificação -- como a aleatorização via RCL do GRASP -- nas
+etapas futuras.
+
+
+% =============================================================================
+\section{Conclusão}
+% =============================================================================
+
+Este trabalho apresentou uma heurística construtiva gulosa para o GQAP
+simplificado, com função objetivo composta por termos linear e quadrático, e
+restrições de capacidade por localização. O algoritmo possui complexidade
+$O(n^2 \cdot m)$ e demonstrou eficiência computacional excelente, resolvendo
+instâncias de até 30 entidades e 10 localizações em menos de 1 ms.
+
+Os experimentos revelaram que a heurística é confiável para instâncias com
+capacidade folgada ou média, mas apresenta limitações em cenários de capacidade
+muito restrita, onde a estratégia gulosa pode levar a soluções inviáveis.
+
+Como trabalhos futuros, planeja-se:
+\begin{itemize}
+  \item \textbf{Etapa 2:} introdução da Lista Restrita de Candidatos (RCL) para
+        aleatorizar a construção, transformando o algoritmo em um GRASP;
+  \item \textbf{Etapa 3:} incorporação de uma fase de busca local
+        (ex.: troca de pares, 2-opt) para refinamento das soluções construídas;
+  \item \textbf{Etapa 4:} validação com instâncias da OR-Library e comparação
+        direta com os resultados de \cite{cordeau:2006}.
+\end{itemize}
 
 \bibliographystyle{sbc}
-\bibliography{sbc-template}
+\bibliography{referencia}
 
 \end{document}
