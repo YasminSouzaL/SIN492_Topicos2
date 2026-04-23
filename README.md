@@ -6,7 +6,7 @@ O trabalho aborda o **Problema de Atribuição Quadrática Generalizada (GQAP)**
 
 ---
 
-## 📌 Objetivo
+## Objetivo
 
 O objetivo do projeto é estudar e implementar métodos heurísticos para resolver o GQAP, um problema clássico de otimização combinatória que envolve:
 
@@ -16,7 +16,7 @@ O objetivo do projeto é estudar e implementar métodos heurísticos para resolv
 
 ---
 
-## 🧠 Metodologia
+## Metodologia
 
 O projeto foi estruturado de forma incremental:
 
@@ -41,7 +41,7 @@ O projeto foi estruturado de forma incremental:
 
 ---
 
-## 📂 Estrutura do Projeto
+## Estrutura do Projeto
 
 ```
 .
@@ -55,7 +55,7 @@ O projeto foi estruturado de forma incremental:
 
 ---
 
-## ⚙️ Instâncias
+##  Instâncias
 
 As instâncias são geradas artificialmente com:
 
@@ -73,7 +73,7 @@ As instâncias são geradas artificialmente com:
 
 ---
 
-## ▶️ Como Executar
+## Como Executar
 
 1. Gerar instâncias (caso necessário):
 
@@ -87,44 +87,32 @@ python instancias.py
 python experimentos.py
 ```
 
----
 
-## 📊 Resultados
-
-Os experimentos geram:
-
-* Tabela de resultados no terminal
-* Tabela formatada para LaTeX
-* Visualização gráfica (matplotlib)
-
-Os resultados mostram que:
-
-* Instâncias maiores possuem maior custo
-* Capacidades mais restritas reduzem a viabilidade
-* A heurística é rápida, porém limitada na qualidade da solução
 
 ---
 
-## 📄 Artigo Base
+## Artigo Base
 
 O trabalho é inspirado no seguinte artigo:
 
-🔗 https://www.researchgate.net/publication/220403439_GRASP_with_path-relinking_for_the_generalized_quadratic_assignment_problem
+https://www.researchgate.net/publication/220403439_GRASP_with_path-relinking_for_the_generalized_quadratic_assignment_problem
 
+
+## Artigo Nosso
+Nosso artigo está disponivel : https://www.overleaf.com/read/jmrrdfqtxmhm#750067
 ---
 
-## 👥 Autores
+##  Autores
 
 * Yasmin Souza Lima
 * José Guedes
 
 ---
 
-## 🚀 Próximos Passos
+## Próximos Passos
 
 * Implementação do GRASP
 * Inclusão de busca local
-* Comparação de desempenho entre métodos
-* Testes com instâncias maiores
+
 
 ---

@@ -197,6 +197,51 @@ def gerar_tabela_visual(resultados):
     plt.savefig("tabela_resultados_melhorada.png", dpi=300, bbox_inches='tight')
     plt.show()
 
+
+
+
+def grafico_comparacao_gap(resultados):
+    labels = []
+    heuristica = []
+    gap_percentual = []
+
+    for r in resultados:
+        partes = r['instancia'].split('_')
+        tamanho = partes[0]
+
+        if tamanho not in labels:
+            labels.append(tamanho)
+            heuristica.append(r['custo'])
+
+            # Gap simulado (ex: 20% melhor que heurística)
+            gap = 20  
+            gap_percentual.append(gap)
+
+    nomes = {
+        'pequeno': '5x3',
+        'medio': '15x6',
+        'grande': '30x10'
+    }
+
+    x_labels = [nomes[l] for l in labels]
+
+    plt.figure(figsize=(8,5))
+    plt.bar(x_labels, heuristica, label="Heurística Gulosa")
+
+    # linha do gap
+    plt.plot(x_labels, [h*(1-0.2) for h in heuristica],
+             marker='o', linestyle='--',
+             label="Estimativa GRASP (-20%)")
+
+    plt.xlabel("Tamanho da Instância")
+    plt.ylabel("Custo")
+    plt.title("Comparação Ilustrativa entre Heurística e GRASP")
+    plt.legend()
+    plt.grid()
+
+    plt.savefig("comparacao_gap.png", dpi=300)
+    plt.show()
+
 if __name__ == '__main__':
     # 1. Gera instâncias (se não existirem)
     if not os.path.exists('instancias') or not os.listdir('instancias'):
@@ -211,4 +256,5 @@ if __name__ == '__main__':
     #4 .
     gerar_tabela_visual(resultados)
 
-   
+    #5. Gráfico comparativo (ilustrativo)
+    grafico_comparacao_gap(resultados)
