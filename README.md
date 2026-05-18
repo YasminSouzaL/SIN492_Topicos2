@@ -33,7 +33,6 @@ O projeto foi estruturado de forma incremental:
 ### 🔹 Etapas Futuras
 
 * Implementação do **GRASP**
-
   * Lista restrita de candidatos (RCL)
   * Construção semi-gulosa
 * Inclusão de **busca local**
@@ -45,47 +44,26 @@ O projeto foi estruturado de forma incremental:
 
 ```
 .
-├── heuristica.py     # Implementação da heurística gulosa
-├── instancias.py     # Geração de instâncias sintéticas
-├── experimentos.py   # Execução dos experimentos
-├── instancias/       # Conjunto de instâncias geradas (JSON)
-├── resultados.txt    # Resultados dos testes
-└── main.tex          # Artigo em LaTeX
+├── heuristica.py          # Heurística construtiva gulosa (O(n²·m))
+├── instancias.py          # Gerador de instâncias sintéticas (45 instâncias)
+├── experimento.py         # Runner de experimentos + tabelas LaTeX
+├── adaptador_qaplib.py    # Adaptador QAPLIB → GQAP (dados embutidos)
+├── instancias/            # Instâncias sintéticas geradas (JSON)
+├── dataset/               # Instâncias QAPLIB adaptadas (JSON)
 ```
 
----
 
-##  Instâncias
-
-As instâncias são geradas artificialmente com:
-
-* Diferentes tamanhos:
-
-  * Pequeno (5×3)
-  * Médio (15×6)
-  * Grande (30×10)
-* Diferentes níveis de capacidade:
-
-  * Folgada (2.0)
-  * Média (1.5)
-  * Apertada (1.1)
-* Múltiplas sementes para reprodutibilidade
-
----
 
 ## Como Executar
 
-1. Gerar instâncias (caso necessário):
-
-```bash
+# 1. Gerar instâncias sintéticas
 python instancias.py
-```
 
-2. Rodar experimentos:
+# 2. Gerar dataset QAPLIB (sem necessidade de internet)
+python adaptador_qaplib.py
 
-```bash
-python experimentos.py
-```
+# 3. Rodar todos os experimentos e gerar tabelas LaTeX
+python experimento.py
 
 
 
@@ -98,7 +76,7 @@ O trabalho é inspirado no seguinte artigo:
 https://www.researchgate.net/publication/220403439_GRASP_with_path-relinking_for_the_generalized_quadratic_assignment_problem
 
 
-## Artigo Nosso
+# Artigo Nosso
 Nosso artigo está disponivel : https://www.overleaf.com/read/jmrrdfqtxmhm#750067
 ---
 

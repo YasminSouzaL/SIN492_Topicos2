@@ -1,156 +1,120 @@
 """
-Gerador de Instâncias Sintéticas para o GQAP Simplificado.
+instancias.py
+-------------
+Gerador de instâncias sintéticas reproducíveis para o GQAP simplificado.
 
-Gera instâncias controladas com diferentes tamanhos e níveis de
-apertamento de capacidade (capacidade folgada, média, apertada).
+Estrutura da instância (dict)
+-----------------------------
+  n_produtos  : int          – número de produtos
+  n_maquinas  : int          – número de máquinas
+  custo_linear: list[n][m]   – f[i][j]: custo de alocar produto i em máquina j
+  interacao   : list[n][n]   – inter[i][k]: peso de interação entre produtos i e k
+  distancia   : list[m][m]   – dist[j][l]: distância entre máquinas j e l
+  consumo     : list[n][m]   – b[i][j]: recurso consumido por produto i em máquina j
+  capacidade  : list[m]      – c[j]: capacidade total da máquina j
 
-Disciplina: SIN-492 Tópicos Especiais 2 (2026/1)
-Autores: Yasmin Souza, José Guedes
+Parâmetro alpha (aperto de capacidade)
+---------------------------------------
+  alpha perto de 1  → capacidade apertada (difícil alocar tudo)
+  alpha perto de 2  → capacidade folgada  (fácil alocar tudo)
 """
 
 import random
-import json
-import os
 
 
-def gerar_instancia(
-    n_entidades,
-    n_locais,
-    fator_capacidade=1.5,
-    seed=None,
-    nome=None
-):
+def gerar_instancia(n_produtos, n_maquinas, alpha=1.5, semente=42):
     """
-    Gera uma instância sintética do GQAP simplificado.
+    Gera uma instância sintética reproducível do GQAP.
 
     Parâmetros
     ----------
-    n_entidades      : int   — número de entidades a alocar
-    n_locais         : int   — número de localizações disponíveis
-    fator_capacidade : float — controla folga da capacidade
-                               1.0 = muito apertado, 2.0 = folgado
-    seed             : int   — semente para reprodutibilidade
-    nome             : str   — identificador da instância
+    n_produtos : int   – número de produtos
+    n_maquinas : int   – número de máquinas
+    alpha      : float – fator de capacidade (1.0 = muito apertado, 2.0 = folgado)
+    semente    : int   – semente do gerador para reproducibilidade
 
-    Retorno
+    Retorna
     -------
-    dict com todas as matrizes da instância
+    dict com todos os dados da instância
     """
-    rng = random.Random(seed)
+    rng = random.Random(semente)
+    n, m = n_produtos, n_maquinas
 
-    n = n_entidades
-    m = n_locais
+    # Custo linear f[i][j] ∈ [1, 100]
+    custo_linear = [[rng.randint(1, 100) for _ in range(m)] for _ in range(n)]
 
-    # ── Custo linear: alocar entidade i na localização j ─────────────
-    custo_linear = [
-        [round(rng.uniform(1, 100), 2) for j in range(m)]
-        for i in range(n)
-    ]
-
-    # ── Fluxo entre entidades (matriz simétrica) ──────────────────────
-    fluxo = [[0.0] * n for _ in range(n)]
+    # Interação inter[i][k] = inter[k][i] ∈ [0, 50], diagonal = 0
+    interacao = [[0.0] * n for _ in range(n)]
     for i in range(n):
         for k in range(i + 1, n):
-            f = round(rng.uniform(0, 50), 2)
-            fluxo[i][k] = f
-            fluxo[k][i] = f
+            v = rng.randint(0, 50)
+            interacao[i][k] = v
+            interacao[k][i] = v
 
-    # ── Distância entre localizações (matriz simétrica) ───────────────
+    # Distância dist[j][l] = dist[l][j] ∈ [1, 20], diagonal = 0
     distancia = [[0.0] * m for _ in range(m)]
     for j in range(m):
         for l in range(j + 1, m):
-            d = round(rng.uniform(1, 20), 2)
-            distancia[j][l] = d
-            distancia[l][j] = d
+            v = rng.randint(1, 20)
+            distancia[j][l] = v
+            distancia[l][j] = v
 
-    # ── Consumo de recursos: entidade i na localização j ─────────────
-    consumo = [
-        [round(rng.uniform(1, 10), 2) for j in range(m)]
-        for i in range(n)
+    # Consumo b[i][j] ∈ [1, 10]
+    consumo = [[rng.randint(1, 10) for _ in range(m)] for _ in range(n)]
+
+    # Capacidade: alpha × (consumo médio por máquina se produtos distribuídos uniformemente)
+    # Usa a média de consumo de cada produto (não o mínimo) para uma estimativa mais realista.
+    consumo_medio_produto = sum(
+        sum(consumo[i]) / m for i in range(n)
+    )
+    # Demanda média por máquina se distribuição for uniforme
+    demanda_por_maquina = consumo_medio_produto / m
+    cap_base = alpha * demanda_por_maquina
+    variacao = cap_base * 0.1
+    capacidade = [
+        max(1, int(cap_base + rng.uniform(-variacao, variacao)))
+        for _ in range(m)
     ]
 
-    # ── Capacidade: suficiente para alocar todos com fator de folga ───
-    # Para cada localização j, a demanda mínima esperada é a média de
-    # consumo[i][j] multiplicada pelo número médio de entidades por local.
-    entidades_por_local = n / m
-    capacidade = []
-    for j in range(m):
-        demanda_media = sum(consumo[i][j] for i in range(n)) / n
-        cap = round(demanda_media * entidades_por_local * fator_capacidade, 2)
-        cap = max(cap, max(consumo[i][j] for i in range(n)))  # garante ao menos 1 por local
-        capacidade.append(cap)
-
     return {
-        'nome'        : nome or f"inst_{n}x{m}_f{fator_capacidade}",
-        'n_entidades' : n,
-        'n_locais'    : m,
-        'fator_cap'   : fator_capacidade,
-        'seed'        : seed,
+        'n_produtos' : n,
+        'n_maquinas' : m,
         'custo_linear': custo_linear,
-        'fluxo'       : fluxo,
-        'distancia'   : distancia,
-        'consumo'     : consumo,
-        'capacidade'  : capacidade,
+        'interacao'  : interacao,
+        'distancia'  : distancia,
+        'consumo'    : consumo,
+        'capacidade' : capacidade,
+        'alpha'      : alpha,
+        'semente'    : semente,
     }
 
 
-def salvar_instancia(instancia, diretorio='instancias'):
-    """Salva uma instância em arquivo JSON."""
-    os.makedirs(diretorio, exist_ok=True)
-    caminho = os.path.join(diretorio, f"{instancia['nome']}.json")
-    with open(caminho, 'w') as f:
-        json.dump(instancia, f, indent=2)
-    print(f"  Salva: {caminho}")
-    return caminho
-
-
-def carregar_instancia(caminho):
-    """Carrega uma instância de um arquivo JSON."""
-    with open(caminho) as f:
-        return json.load(f)
-
-
-def gerar_conjunto_experimentos(diretorio='instancias'):
+def gerar_conjunto_instancias():
     """
-    Gera o conjunto padrão de instâncias para os experimentos do trabalho.
+    Gera 45 instâncias cobrindo 3 tamanhos × 3 alphas × 5 sementes.
 
-    Configurações:
-        Tamanhos: pequeno (5x3), médio (15x6), grande (30x10)
-        Fatores de capacidade: folgado (2.0), médio (1.5), apertado (1.1)
-        5 sementes por configuração → 45 instâncias no total
+    Retorna lista de dicts, cada um com os dados da instância e metadados.
     """
-    tamanhos = [
-        (5,  3,  'pequeno'),
-        (15, 6,  'medio'),
-        (30, 10, 'grande'),
+    configuracoes = [
+        # (n_produtos, n_maquinas, label_tamanho)
+        (10,  5,  'Pequena'),
+        (20,  8,  'Media'  ),
+        (40, 12,  'Grande' ),
     ]
-    fatores = [
-        (2.0, 'folgado'),
-        (1.5, 'medio'),
-        (1.1, 'apertado'),
+    alphas = [
+        (1.2, 'Apertada'),
+        (1.5, 'Media'   ),
+        (2.0, 'Folgada' ),
     ]
-    seeds = [42, 123, 456, 789, 1001]
+    sementes = [42, 123, 256, 512, 999]
 
     instancias = []
-    print("Gerando instâncias sintéticas...\n")
-
-    for (n, m, tam_nome) in tamanhos:
-        for (fator, fat_nome) in fatores:
-            for s in seeds:
-                nome = f"{tam_nome}_{fat_nome}_s{s}"
-                inst = gerar_instancia(
-                    n_entidades=n,
-                    n_locais=m,
-                    fator_capacidade=fator,
-                    seed=s,
-                    nome=nome
-                )
-                salvar_instancia(inst, diretorio)
+    for n, m, label_tam in configuracoes:
+        for alpha, label_cap in alphas:
+            for s in sementes:
+                inst = gerar_instancia(n, m, alpha=alpha, semente=s)
+                inst['label_tamanho']   = label_tam
+                inst['label_capacidade'] = label_cap
                 instancias.append(inst)
 
-    print(f"\nTotal: {len(instancias)} instâncias geradas em '{diretorio}/'")
     return instancias
-
-
-if __name__ == '__main__':
-    gerar_conjunto_experimentos()

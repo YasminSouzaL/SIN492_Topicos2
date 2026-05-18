@@ -1,260 +1,308 @@
-
-
+import time
+import csv
 import os
-import statistics
-from instancias   import gerar_conjunto_experimentos, carregar_instancia
-from heuristica   import executar
+import sys
+from collections import defaultdict
+
+# matplotlib é opcional — se não estiver instalado, pula os gráficos
+try:
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    import matplotlib.patches as mpatches
+    import numpy as np
+    MATPLOTLIB_OK = True
+except ImportError:
+    MATPLOTLIB_OK = False
+    print("AVISO: matplotlib/numpy não encontrado.")
+    print("       Instale com:  pip install matplotlib numpy")
+    print("       Os gráficos serão pulados.\n")
+
+from instancias  import gerar_conjunto_instancias
+from heuristica  import heuristica_gulosa
+from busca_local import busca_local_vnd
+
+# Pasta onde o script está sendo executado
+PASTA = os.path.dirname(os.path.abspath(__file__))
 
 
-def rodar_experimentos(diretorio='instancias'):
-    """
-    Executa a heurística em todas as instâncias do diretório.
-    Retorna lista de resultados.
-    """
-    arquivos = sorted(
-        f for f in os.listdir(diretorio) if f.endswith('.json')
-    )
 
-    if not arquivos:
-        print("Nenhuma instância encontrada. Gerando...")
-        gerar_conjunto_experimentos(diretorio)
-        arquivos = sorted(
-            f for f in os.listdir(diretorio) if f.endswith('.json')
-        )
+# Execução de uma instância
 
+def executar_instancia(instancia):
+    t0 = time.perf_counter()
+    sol_g, custo_g, nao_aloc_g = heuristica_gulosa(instancia)
+    t_gulosa = time.perf_counter() - t0
+
+    t0 = time.perf_counter()
+    sol_bl, custo_bl, historico = busca_local_vnd(sol_g, instancia)
+    t_bl = time.perf_counter() - t0
+
+    melhora_pct = 100.0 * (custo_g - custo_bl) / custo_g if custo_g > 0 else 0.0
+
+    return {
+        'label_tamanho'   : instancia['label_tamanho'],
+        'label_capacidade': instancia['label_capacidade'],
+        'n_produtos'      : instancia['n_produtos'],
+        'n_maquinas'      : instancia['n_maquinas'],
+        'alpha'           : instancia['alpha'],
+        'semente'         : instancia['semente'],
+        'custo_gulosa'    : custo_g,
+        'nao_alocados'    : len(nao_aloc_g),
+        'tempo_gulosa_ms' : round(t_gulosa * 1000, 4),
+        'custo_bl'        : custo_bl,
+        'tempo_bl_ms'     : round(t_bl * 1000, 4),
+        'melhora_pct'     : round(melhora_pct, 4),
+        'movimentos_bl'   : sum(h['movimentos'] for h in historico),
+    }
+
+
+
+# Rodada completa
+
+
+def rodar_experimentos():
+    instancias = gerar_conjunto_instancias()
     resultados = []
-    print(f"\nExecutando heurística em {len(arquivos)} instâncias...\n")
 
-    for arq in arquivos:
-        inst = carregar_instancia(os.path.join(diretorio, arq))
-        res  = executar(inst, verbose=False)
-        resultados.append(res)
-        status = "OK" if res['viavel'] else "INVIAVEL"
-        print(f"  {res['instancia']:<35}  custo={res['custo']:>10.2f}  "
-              f"tempo={res['tempo_ms']:>7.3f}ms  [{status}]")
+    print(f"{'Instância':<30} {'C.Gulosa':>12} {'C.BL':>12} {'Melhora':>9} {'T.BL(ms)':>10}")
+    print("-" * 80)
+
+    for inst in instancias:
+        r = executar_instancia(inst)
+        resultados.append(r)
+        label = f"{r['label_tamanho']}-{r['label_capacidade']}-s{r['semente']}"
+        print(f"{label:<30} {r['custo_gulosa']:>12.1f} {r['custo_bl']:>12.1f} "
+              f"{r['melhora_pct']:>8.2f}% {r['tempo_bl_ms']:>10.2f}")
 
     return resultados
 
 
-def gerar_tabela_resumo(resultados):
-    """
-    Agrupa resultados por (tamanho, fator_capacidade) e exibe
-    médias de custo e tempo — pronta para copiar no LaTeX.
-    """
-    grupos = {}
+
+# Agregação por grupo
+def agregar_grupos(resultados):
+    ordem_tam = {'Pequena': 0, 'Media': 1, 'Grande': 2}
+    ordem_cap = {'Apertada': 0, 'Media': 1, 'Folgada': 2}
+
+    grupos = defaultdict(list)
     for r in resultados:
-        # extrai grupo do nome: "pequeno_folgado_s42" → ("pequeno","folgado")
-        partes = r['instancia'].split('_')
-        chave  = (partes[0], partes[1])
-        grupos.setdefault(chave, []).append(r)
-
-    print("\n" + "=" * 72)
-    print(f"{'Tamanho':<10} {'Capacidade':<12} {'Viáveis':>8} "
-          f"{'Custo Médio':>14} {'Custo Min':>12} {'Custo Max':>12} "
-          f"{'Tempo Médio (ms)':>17}")
-    print("=" * 72)
-
-    for (tam, fat), lista in sorted(grupos.items()):
-        custos  = [r['custo']    for r in lista]
-        tempos  = [r['tempo_ms'] for r in lista]
-        viaveis = sum(1 for r in lista if r['viavel'])
-
-        print(f"{tam:<10} {fat:<12} {viaveis:>6}/{len(lista):<2} "
-              f"{statistics.mean(custos):>14.2f} "
-              f"{min(custos):>12.2f} "
-              f"{max(custos):>12.2f} "
-              f"{statistics.mean(tempos):>17.4f}")
-
-    print("=" * 72)
-
-
-'''
-def gerar_tabela_latex(resultados):
-    """
-    Gera o código LaTeX da tabela de resultados para o artigo.
-    """
-    grupos = {}
-    for r in resultados:
-        partes = r['instancia'].split('_')
-        chave  = (partes[0], partes[1])
-        grupos.setdefault(chave, []).append(r)
-
-    tamanho_map = {'pequeno': '5×3',  'medio': '15×6', 'grande': '30×10'}
-    fator_map   = {'folgado': 'Folgada (2.0)', 'medio': 'Média (1.5)',
-                   'apertado': 'Apertada (1.1)'}
+        chave = (r['label_tamanho'], r['n_produtos'], r['n_maquinas'],
+                 r['label_capacidade'], r['alpha'])
+        grupos[chave].append(r)
 
     linhas = []
-    for (tam, fat), lista in sorted(grupos.items()):
-        custos  = [r['custo']    for r in lista]
-        tempos  = [r['tempo_ms'] for r in lista]
-        viaveis = sum(1 for r in lista if r['viavel'])
+    for chave, grupo in sorted(grupos.items(),
+                               key=lambda x: (ordem_tam[x[0][0]], ordem_cap[x[0][3]])):
+        lt, n, m, lc, alpha = chave
+        linhas.append({
+            'tamanho'        : lt,
+            'n_produtos'     : n,
+            'n_maquinas'     : m,
+            'capacidade'     : lc,
+            'alpha'          : alpha,
+            'label_eixo'     : f"{lt[:3]}/{lc[:2]}",
+            'med_custo_gul'  : round(sum(r['custo_gulosa']    for r in grupo) / len(grupo), 1),
+            'med_custo_bl'   : round(sum(r['custo_bl']        for r in grupo) / len(grupo), 1),
+            'med_melhora_pct': round(sum(r['melhora_pct']     for r in grupo) / len(grupo), 2),
+            'med_tempo_gul'  : round(sum(r['tempo_gulosa_ms'] for r in grupo) / len(grupo), 4),
+            'med_tempo_bl'   : round(sum(r['tempo_bl_ms']     for r in grupo) / len(grupo), 4),
+            'n_instancias'   : len(grupo),
+        })
+    return linhas
 
-        n_str  = tamanho_map.get(tam, tam)
-        f_str  = fator_map.get(fat, fat)
-        viavel = f"{viaveis}/{len(lista)}"
 
-        linhas.append(
-            f"  {n_str} & {f_str} & {viavel} & "
-            f"{statistics.mean(custos):.2f} & "
-            f"{min(custos):.2f} & "
-            f"{max(custos):.2f} & "
-            f"{statistics.mean(tempos):.4f} \\\\"
+
+# CSV — individual e agregado
+
+
+def salvar_csvs(resultados, linhas_agr):
+    # CSV individual (todas as 45 instâncias)
+    caminho_ind = os.path.join(PASTA, 'result2', 'experimentos_individual.csv')
+    with open(caminho_ind, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.DictWriter(f, fieldnames=resultados[0].keys())
+        writer.writeheader()
+        writer.writerows(resultados)
+    print(f"  • {caminho_ind}")
+
+    # CSV agregado (9 grupos com médias)
+    caminho_agr = os.path.join(PASTA, 'result2', 'experimentos_agregado.csv')
+    campos = ['tamanho', 'n_produtos', 'n_maquinas', 'capacidade', 'alpha',
+              'med_custo_gul', 'med_custo_bl', 'med_melhora_pct',
+              'med_tempo_gul', 'med_tempo_bl', 'n_instancias']
+    with open(caminho_agr, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.DictWriter(f, fieldnames=campos, extrasaction='ignore')
+        writer.writeheader()
+        writer.writerows(linhas_agr)
+    print(f"  • {caminho_agr}")
+
+
+
+# Tabela LaTeX
+
+'''
+def gerar_tabela_latex(linhas):
+    latex = [
+        r'\begin{table}[ht]',
+        r'\centering',
+        r'\caption{Resultados médios por grupo de instâncias (5 sementes por grupo)}',
+        r'\label{tab:resultados}',
+        r'\begin{tabular}{|l|c|c|l|r|r|r|r|r|}',
+        r'\hline',
+        r'\textbf{Tam.} & \textbf{n} & \textbf{m} & \textbf{Cap.} & '
+        r'\textbf{C.Gul.} & \textbf{C.BL} & \textbf{Mel.\%} & '
+        r'\textbf{T.Gul.(ms)} & \textbf{T.BL(ms)} \\',
+        r'\hline',
+    ]
+    ultimo = None
+    for l in linhas:
+        if ultimo and l['tamanho'] != ultimo:
+            latex.append(r'\hline')
+        ultimo = l['tamanho']
+        latex.append(
+            f"{l['tamanho']} & {l['n_produtos']} & {l['n_maquinas']} & "
+            f"{l['capacidade']} & {l['med_custo_gul']:.0f} & "
+            f"{l['med_custo_bl']:.0f} & {l['med_melhora_pct']:.1f} & "
+            f"{l['med_tempo_gul']:.2f} & {l['med_tempo_bl']:.2f} \\\\"
         )
-
-    latex = r"""
-\begin{table}[ht]
-\centering
-\caption{Resultados da heurística construtiva gulosa nas instâncias sintéticas}
-\label{tab:resultados}
-\begin{tabular}{llcrrrrr}
-\hline
-\textbf{Tamanho} & \textbf{Capacidade} & \textbf{Viáveis} &
-\textbf{Custo Médio} & \textbf{Custo Mín.} & \textbf{Custo Máx.} &
-\textbf{Tempo (ms)} \\
-\hline
-""" + "\n".join(linhas) + r"""
-\hline
-\end{tabular}
-\end{table}
-"""
-    print("\n--- TABELA LATEX ---")
-    print(latex)
-    return latex
-
+    latex += [r'\hline', r'\end{tabular}', r'\end{table}']
+    return '\n'.join(latex)
 '''
 
 
+# Gráficos
 
 
-import matplotlib.pyplot as plt
-import statistics
+def gerar_graficos(linhas):
+    if not MATPLOTLIB_OK:
+        print("  Gráficos pulados (matplotlib não instalado).")
+        return
 
+    plt.rcParams.update({
+        'font.family'     : 'DejaVu Sans',
+        'axes.spines.top' : False,
+        'axes.spines.right': False,
+        'axes.grid'       : True,
+        'grid.alpha'      : 0.35,
+        'grid.linestyle'  : '--',
+    })
 
-def gerar_tabela_visual(resultados):
-    grupos = {}
+    COR_GUL = '#4C72B0'
+    COR_BL  = '#DD8452'
+    COR_MEL = '#55A868'
 
-    for r in resultados:
-        partes = r['instancia'].split('_')
-        chave = (partes[0], partes[1])
-        grupos.setdefault(chave, []).append(r)
+    labels  = [l['label_eixo']      for l in linhas]
+    c_gul   = [l['med_custo_gul']   for l in linhas]
+    c_bl    = [l['med_custo_bl']    for l in linhas]
+    melhora = [l['med_melhora_pct'] for l in linhas]
+    t_bl    = [l['med_tempo_bl']    for l in linhas]
+    x = np.arange(len(labels))
 
-    tamanho_map = {'pequeno': '5x3', 'medio': '15x6', 'grande': '30x10'}
-    fator_map = {'folgado': 'Folgada', 'medio': 'Média', 'apertado': 'Apertada'}
+    # ── Figura 1: Custo comparativo ──────────────────────────────────────────
+    fig, ax = plt.subplots(figsize=(11, 5.5))
+    larg = 0.38
+    ax.bar(x - larg/2, c_gul, larg, label='Heurística Gulosa',
+           color=COR_GUL, edgecolor='white', linewidth=0.6)
+    ax.bar(x + larg/2, c_bl, larg, label='Busca Local VND',
+           color=COR_BL, edgecolor='white', linewidth=0.6)
+    for xv in [2.5, 5.5]:
+        ax.axvline(xv, color='gray', linestyle=':', linewidth=1.2, alpha=0.6)
+    ymax = ax.get_ylim()[1]
+    for xc, txt in zip([1, 4, 7], ['Pequenas (n=10)', 'Médias (n=20)', 'Grandes (n=40)']):
+        ax.text(xc, ymax * 0.97, txt, ha='center', fontsize=9, color='gray', style='italic')
+    ax.set_xticks(x); ax.set_xticklabels(labels, fontsize=10)
+    ax.set_ylabel('Custo médio da solução', fontsize=11)
+    ax.set_title('Custo Médio: Heurística Gulosa vs. Busca Local VND',
+                 fontsize=12, fontweight='bold', pad=12)
+    ax.legend(fontsize=10)
+    fig.tight_layout()
+    p = os.path.join(PASTA, 'result2', 'fig1_comparacao_custos.png')
+    fig.savefig(p, dpi=300, bbox_inches='tight')
+    plt.close()
+    print(f"  • {p}")
 
-    dados_tabela = []
-
-    for (tam, fat), lista in sorted(grupos.items()):
-        custos = [r['custo'] for r in lista]
-        tempos = [r['tempo_ms'] for r in lista]
-        viaveis = sum(1 for r in lista if r['viavel'])
-
-        dados_tabela.append([
-            tamanho_map.get(tam, tam),
-            fator_map.get(fat, fat),
-            f"{viaveis}/{len(lista)}",
-            f"{statistics.mean(custos):.2f}",
-            f"{min(custos):.2f}",
-            f"{max(custos):.2f}",
-            f"{statistics.mean(tempos):.4f}"
-        ])
-
-    colunas = [
-        "Tamanho", "Capacidade", "Viáveis",
-        "Custo Médio", "Custo Min", "Custo Max", "Tempo (ms)"
+    # ── Figura 2: Melhora percentual ─────────────────────────────────────────
+    fig, ax = plt.subplots(figsize=(11, 5.5))
+    cores = [COR_MEL]*3 + ['#8172B2']*3 + ['#C44E52']*3
+    bars = ax.bar(x, melhora, color=cores, edgecolor='white', linewidth=0.6)
+    for bar, val in zip(bars, melhora):
+        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.4,
+                f'{val:.1f}%', ha='center', va='bottom', fontsize=9, fontweight='bold')
+    media_geral = sum(melhora) / len(melhora)
+    ax.axhline(media_geral, color='navy', linestyle='--', linewidth=1.4, alpha=0.8)
+    for xv in [2.5, 5.5]:
+        ax.axvline(xv, color='gray', linestyle=':', linewidth=1.2, alpha=0.6)
+    leg = [
+        mpatches.Patch(color=COR_MEL,   label='Pequenas'),
+        mpatches.Patch(color='#8172B2', label='Médias'),
+        mpatches.Patch(color='#C44E52', label='Grandes'),
+        plt.Line2D([0],[0], color='navy', linestyle='--',
+                   label=f'Média geral: {media_geral:.1f}%'),
     ]
+    ax.set_xticks(x); ax.set_xticklabels(labels, fontsize=10)
+    ax.set_ylabel('Melhora média (%)', fontsize=11)
+    ax.set_ylim(0, max(melhora) * 1.18)
+    ax.set_title('Melhora Percentual da Busca Local sobre a Heurística Gulosa',
+                 fontsize=12, fontweight='bold', pad=12)
+    ax.legend(handles=leg, fontsize=9)
+    fig.tight_layout()
+    #Salva na pasta result2
+    final_path = os.path.join(PASTA, 'result2', 'fig2_melhora_pct.png')
+    fig.savefig(final_path, dpi=300, bbox_inches='tight')
+    plt.close()
+    print(f"  • {final_path}")
 
-    fig, ax = plt.subplots(figsize=(12, 4))
-    ax.axis('off')
-
-    tabela = ax.table(
-        cellText=dados_tabela,
-        colLabels=colunas,
-        loc='center',
-        cellLoc='center'
-    )
-
-    # Fonte
-    tabela.auto_set_font_size(False)
-    tabela.set_fontsize(11)
-
-    # Ajuste de largura
-    tabela.auto_set_column_width(col=list(range(len(colunas))))
-
-    # 🎨 Estilo
-    for (row, col), cell in tabela.get_celld().items():
-        # Cabeçalho
-        if row == 0:
-            cell.set_text_props(weight='bold')
-            cell.set_facecolor('#cccccc')
-        else:
-            # Zebra
-            if row % 2 == 0:
-                cell.set_facecolor('#f2f2f2')
-
-    plt.title("Resultados da Heurística Gulosa (GQAP)", fontsize=14, weight='bold')
-    plt.tight_layout()
-
-    plt.savefig("tabela_resultados_melhorada.png", dpi=300, bbox_inches='tight')
-    plt.show()
-
+    # ── Figura 3: Tempo de execução ───────────────────────────────────────────
+    fig, ax = plt.subplots(figsize=(11, 5.5))
+    bars = ax.bar(x, t_bl, color='#C44E52', edgecolor='white', linewidth=0.6, alpha=0.85)
+    for bar, val in zip(bars, t_bl):
+        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1,
+                f'{val:.0f}ms', ha='center', va='bottom', fontsize=8.5)
+    for xv in [2.5, 5.5]:
+        ax.axvline(xv, color='gray', linestyle=':', linewidth=1.2, alpha=0.6)
+    ymax = ax.get_ylim()[1]
+    for xc, txt in zip([1, 4, 7], ['Pequenas', 'Médias', 'Grandes']):
+        ax.text(xc, ymax * 0.93, txt, ha='center', fontsize=9, color='gray', style='italic')
+    ax.set_xticks(x); ax.set_xticklabels(labels, fontsize=10)
+    ax.set_ylabel('Tempo médio (ms)', fontsize=11)
+    ax.set_title('Tempo de Execução Médio da Busca Local VND por Grupo',
+                 fontsize=12, fontweight='bold', pad=12)
+    fig.tight_layout()
+    p = os.path.join(PASTA, 'result2', 'fig3_tempo.png')
+    fig.savefig(p, dpi=300, bbox_inches='tight')
+    plt.close()
+    print(f"  • {p}")
 
 
 
-def grafico_comparacao_gap(resultados):
-    labels = []
-    heuristica = []
-    gap_percentual = []
+# Main
 
-    for r in resultados:
-        partes = r['instancia'].split('_')
-        tamanho = partes[0]
-
-        if tamanho not in labels:
-            labels.append(tamanho)
-            heuristica.append(r['custo'])
-
-            # Gap simulado (ex: 20% melhor que heurística)
-            gap = 20  
-            gap_percentual.append(gap)
-
-    nomes = {
-        'pequeno': '5x3',
-        'medio': '15x6',
-        'grande': '30x10'
-    }
-
-    x_labels = [nomes[l] for l in labels]
-
-    plt.figure(figsize=(8,5))
-    plt.bar(x_labels, heuristica, label="Heurística Gulosa")
-
-    # linha do gap
-    plt.plot(x_labels, [h*(1-0.2) for h in heuristica],
-             marker='o', linestyle='--',
-             label="Estimativa GRASP (-20%)")
-
-    plt.xlabel("Tamanho da Instância")
-    plt.ylabel("Custo")
-    plt.title("Comparação Ilustrativa entre Heurística e GRASP")
-    plt.legend()
-    plt.grid()
-
-    plt.savefig("comparacao_gap.png", dpi=300)
-    plt.show()
 
 if __name__ == '__main__':
-    # 1. Gera instâncias (se não existirem)
-    if not os.path.exists('instancias') or not os.listdir('instancias'):
-        gerar_conjunto_experimentos()
+    
+    print("GQAP — Experimentos Computacionais")
+    print("Heurística Construtiva Gulosa  vs.  Construtiva + Busca Local VND")
+    print()
 
-    # 2. Executa heurística
-    resultados = rodar_experimentos()
+    resultados  = rodar_experimentos()
+    linhas_agr  = agregar_grupos(resultados)
 
-    # 3. Exibe tabela resumo no terminal
-    gerar_tabela_resumo(resultados)
+    print()
+    print("SALVANDO ARQUIVOS CSV")    
+    salvar_csvs(resultados, linhas_agr)
 
-    #4 .
-    gerar_tabela_visual(resultados)
-
-    #5. Gráfico comparativo (ilustrativo)
-    grafico_comparacao_gap(resultados)
+    print()
+    print("GERANDO GRÁFICOS")
+    gerar_graficos(linhas_agr)
+    print()
+    
+    print("RESUMO GERAL")
+    total       = len(resultados)
+    med_melhora = sum(r['melhora_pct'] for r in resultados) / total
+    max_melhora = max(r['melhora_pct'] for r in resultados)
+    med_t_bl    = sum(r['tempo_bl_ms'] for r in resultados) / total
+    sem_alocar  = sum(1 for r in resultados if r['nao_alocados'] > 0)
+    print(f"Total de instâncias        : {total}")
+    print(f"Instâncias com não-alocados: {sem_alocar}")
+    print(f"Melhora média (BL vs Gul.) : {med_melhora:.2f}%")
+    print(f"Melhora máxima             : {max_melhora:.2f}%")
+    print(f"Tempo médio BL (ms)        : {med_t_bl:.2f}")
