@@ -30,26 +30,25 @@ O projeto foi estruturado de forma incremental:
   * custo linear
   * custo quadrático (interações entre pares)
 
-### 🔹 Etapas Futuras
-
-* Implementação do **GRASP**
-  * Lista restrita de candidatos (RCL)
-  * Construção semi-gulosa
-* Inclusão de **busca local**
-* Comparação entre abordagens
-
+### 🔹Etapa 2 — Busca Local (Atual)
+* Implementação do algoritmo **VND (*Variable Neighborhood Descent*)** como núcleo de intensificação.
+* Integração de duas vizinhanças complementares operando em estratégia *Best Improvement*:
+  * **Relocate:** Movimentação de uma única entidade para uma localização distinta.
+  * **Swap:** Troca simultânea de localização entre duas entidades.
+* Estruturação de dados otimizada em Python usando matrizes nativas para garantir tempo de acesso indexado $O(1)$.
+* Complexidade por iteração completa do VND de $O(n^2(m+n))$.
 ---
 
 ## Estrutura do Projeto
 
 ```
-.
-├── heuristica.py          # Heurística construtiva gulosa (O(n²·m))
-├── instancias.py          # Gerador de instâncias sintéticas (45 instâncias)
-├── experimento.py         # Runner de experimentos + tabelas LaTeX
-├── adaptador_qaplib.py    # Adaptador QAPLIB → GQAP (dados embutidos)
-├── instancias/            # Instâncias sintéticas geradas (JSON)
-├── dataset/               # Instâncias QAPLIB adaptadas (JSON)
+├── heuristica.py          # Heurística construtiva gulosa + Busca Local VND
+├── instancias.py          # Gerador corrigido de instâncias sintéticas (45 instâncias)
+├── experimento.py         # Runner de experimentos + plotagem de gráficos (Matplotlib)
+├── adaptador_qaplib.py    # Adaptador QAPLIB → GQAP (dados embutidos para bancada)
+├── instancias/            # Diretório com as instâncias sintéticas geradas (JSON)
+├── dataset/               # Diretório com as instâncias QAPLIB adaptadas (JSON)
+└── README.md              # Documentação do repositório
 ```
 
 
@@ -65,6 +64,7 @@ python adaptador_qaplib.py
 # 3. Rodar todos os experimentos e gerar tabelas LaTeX
 python experimento.py
 
+python adaptador_qaplib.py
 
 
 ---
@@ -89,8 +89,10 @@ Nosso artigo está disponivel : https://www.overleaf.com/read/jmrrdfqtxmhm#75006
 
 ## Próximos Passos
 
-* Implementação do GRASP
-* Inclusão de busca local
+Próximos Passos (Etapa 3 - Final)
+Introdução da Lista Restrita de Candidatos (RCL) para aleatorizar a fase construtiva, consolidando o algoritmo GRASP completo.
+
+Validação experimental definitiva utilizando os datasets oficiais diretamente da OR-Library e comparação numérica com a literatura.
 
 
 ---
